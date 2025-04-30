@@ -1,41 +1,44 @@
+name: CI/CD Pipeline
 
- # .github/workflows/deploy.yml
- name: CI/CD Pipeline
- 
- on:
-   push:
-     branches: [ main ]
- 
- jobs:
-   build-and-deploy:
-     runs-on: ubuntu-latest
- 
-     steps:
-     - name: Checkout code
-       uses: actions/checkout@v3
- 
-     - name: Log in to Docker Hub
-       run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
- 
-     - name: Build and push backend
-       run: |
-         docker build -t ${{ secrets.DOCKER_USERNAME }}/backend:latest ./backend
-         docker push ${{ secrets.DOCKER_USERNAME }}/backend:latest
- 
-     - name: Build and push nginx
-       run: |
-         docker build -t ${{ secrets.DOCKER_USERNAME }}/nginx:latest ./nginx
-         docker push ${{ secrets.DOCKER_USERNAME }}/nginx:latest
- 
-     - name: Setup SSH and Deploy
-       uses: webfactory/ssh-agent@v0.7.0
-       with:
-         ssh-private-key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
- 
-     - name: Connect and update
-       run: |
-         ssh -o StrictHostKeyChecking=no root@${{ secrets.PROD_SERVER_IP }} << 'EOF'
-           docker pull ${{ secrets.DOCKER_USERNAME }}/backend:latest
-           docker pull ${{ secrets.DOCKER_USERNAME }}/nginx:latest
-           docker-compose -f /compose/docker-compose.yml up -d
-         EOF
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Log in to Docker Hub
+      run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+    - name: Build and push backend
+      run: |
+        docker build -t ${{ secrets.DOCKER_USERNAME }}/backend:latest ./backend
+        docker push ${{ secrets.DOCKER_USERNAME }}/backend:latest
+
+    - name: Build and push nginx
+      run: |
+        docker build -t ${{ secrets.DOCKER_USERNAME }}/nginx:latest ./nginx
+        docker push ${{ secrets.DOCKER_USERNAME }}/nginx:latest
+
+    - name: Setup SSH
+      uses: webfactory/ssh-agent@v0.7.0
+      with:
+        ssh-private-key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+
+    - name: Deploy
+      run: |
+        # Копируем обновленные файлы (если нужно)
+        scp -o StrictHostKeyChecking=no ./docker-compose.yml root@${{ secrets.PROD_SERVER_IP }}:/root/app/
+
+        # Запускаем обновление контейнеров
+        ssh -o StrictHostKeyChecking=no root@${{ secrets.PROD_SERVER_IP }} << 'EOF'
+          cd /root/app
+          docker pull ${{ secrets.DOCKER_USERNAME }}/backend:latest
+          docker pull ${{ secrets.DOCKER_USERNAME }}/nginx:latest
+          docker-compose down && docker-compose up -d --build
+        EOF

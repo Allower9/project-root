@@ -1,40 +1,50 @@
-# .github/workflows/deploy.yml
-name: CI/CD Pipeline
+name: Deploy Backend and Nginx
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-    - name: Log in to Docker Hub
-      run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
 
-    - name: Build and push backend
-      run: |
-        docker build -t ${{ secrets.DOCKER_USERNAME }}/backend:latest ./backend
-        docker push ${{ secrets.DOCKER_USERNAME }}/backend:latest
+      - name: Cache Docker layers
+        uses: actions/cache@v2
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
 
-    - name: Build and push nginx
-      run: |
-        docker build -t ${{ secrets.DOCKER_USERNAME }}/nginx:latest ./nginx
-        docker push ${{ secrets.DOCKER_USERNAME }}/nginx:latest
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-    - name: Setup SSH and Deploy
-      uses: webfactory/ssh-agent@v0.7.0
-      with:
-        ssh-private-key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+      - name: Build and push backend image
+        run: |
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/backend:latest ./backend
+          docker push ${{ secrets.DOCKER_USERNAME }}/backend:latest
 
-    - name: Connect and update
-      run: |
-        ssh -o StrictHostKeyChecking=no root@${{ secrets.PROD_SERVER_IP }} << 'EOF'
-          docker pull ${{ secrets.DOCKER_USERNAME }}/backend:latest
-          docker pull ${{ secrets.DOCKER_USERNAME }}/nginx:latest
-          docker-compose -f /compose/docker-compose.yml up -d
-        EOF
+      - name: Build and push nginx image
+        run: |
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/nginx:latest ./nginx
+          docker push ${{ secrets.DOCKER_USERNAME }}/nginx:latest
+
+      - name: Connect and update
+        run: |
+          ssh -o StrictHostKeyChecking=no root@${{ secrets.PROD_SERVER_IP }} << 'EOF'
+            cd /root/app
+            docker pull ${{ secrets.DOCKER_USERNAME }}/backend:latest
+            docker pull ${{ secrets.DOCKER_USERNAME }}/nginx:latest
+            docker-compose down
+            docker-compose up -d
+          EOF

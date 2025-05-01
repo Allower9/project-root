@@ -1,52 +1,40 @@
 # project-root
-🚀 CI/CD FastAPI + NGINX App
-📦 Структура проекта
-bash
-Копировать
-Редактировать
+# 🚀 CI/CD FastAPI + NGINX App
+
+## 📦 Структура проекта
+
+```bash
 project-root/
-├── backend/               # Backend на FastAPI
-│   ├── app.py             # API-приложение
-│   ├── Dockerfile         # Сборка образа backend
-│   └── requirements.txt   # Зависимости backend
-├── nginx/                 # Frontend (Nginx + HTML)
-│   ├── app.conf           # Конфиг для Nginx
-│   ├── Dockerfile         # Сборка образа nginx
-│   └── index.html         # Статическая страница
-├── docker-compose.yml     # Комбинирует backend и nginx
+├── backend/          # Backend на FastAPI
+│   ├── app.py        # API-приложение
+│   ├── Dockerfile    # Сборка образа backend
+│   └── requirements.txt # Зависимости backend
+├── nginx/            # Frontend (Nginx + HTML)
+│   ├── app.conf      # Конфиг для Nginx
+│   ├── Dockerfile    # Сборка образа nginx
+│   └── index.html    # Статическая страница
+├── docker-compose.yml # Комбинирует backend и nginx
 ├── .github/
 │   └── workflows/
-│       └── deploy.yml     # GitHub Actions CI/CD
-└── README.md              # Документация
+│       └── deploy.yml # GitHub Actions CI/CD
+└── README.md         # Документация
+```
 ⚙️ Запуск локально (Docker Compose)
-bash
-Копировать
-Редактировать
-git clone https://github.com/<yourname>/<repo>.git
-cd <repo>
+```bash
+git clone https://github.com/Allower9/project-root.git
+cd project-root
 docker-compose up -d --build
-Доступ к приложению:
+```
+🌐 Доступ к приложению
+Frontend: http://localhost
 
-http://localhost/ — фронтенд (index.html)
+API: http://localhost/api
 
-http://localhost/api/ — API от FastAPI
+🔄 CI/CD Workflow
+При пуше в ветку main:
 
-🚀 CI/CD (GitHub Actions)
-🔑 Secrets (в настройках репозитория):
-Название	Что хранить
-DOCKER_USERNAME	Логин Docker Hub
-DOCKER_PASSWORD	Пароль Docker Hub
-PROD_SSH_PRIVATE_KEY	Приватный ключ с вашей рабочей станции
-PROD_SERVER_IP	IP адрес production-сервера (например: 176....)
+Автоматическая сборка Docker-образов
 
-📤 Что происходит при git push:
-Собираются образы backend и nginx
+Пуш образов в Docker Hub
 
-Заливаются в Docker Hub
-
-CI/CD подключается к прод-серверу по SSH
-
-Обновляется docker-compose.yml
-
-Производится деплой
-
+Деплой на продакшен-сервер через SSH

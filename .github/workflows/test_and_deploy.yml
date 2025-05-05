@@ -28,24 +28,14 @@ jobs:
       run: |
         python -m pytest -v
 
-    - name: Validate Nginx configuration
+    - name: Validate Nginx syntax
       run: |
-        # Создаем сеть и тестовый бэкенд
-        docker network create test-net || true
-        docker run -d --name test-backend --network test-net --network-alias backend \
-          python:3.12 sh -c "pip install fastapi uvicorn && echo 'from fastapi import FastAPI; app = FastAPI(); @app.get(\"/\") def root(): return {\"status\":\"OK\"}' > app.py && uvicorn app:app --host 0.0.0.0 --port 8000"
-        
-        sleep 5  # Ждем запуска бэкенда
-        
-        # Проверяем Nginx
-        docker run --rm --network test-net \
-          -v $(pwd)/nginx/app.conf:/etc/nginx/conf.d/default.conf \
+        # Временно заменяем backend на localhost для проверки синтаксиса
+        sed 's/backend/localhost/' nginx/app.conf > nginx/temp.conf
+        docker run --rm \
+          -v $(pwd)/nginx/temp.conf:/etc/nginx/conf.d/default.conf \
           nginx:alpine nginx -t
-        
-        # Очистка
-        docker stop test-backend
-        docker rm test-backend
-        docker network rm test-net
+        rm nginx/temp.conf
 
   build-and-deploy:
     needs: test

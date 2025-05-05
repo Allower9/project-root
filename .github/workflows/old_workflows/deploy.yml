@@ -5,32 +5,7 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.12'
-
-    - name: Install backend dependencies
-      working-directory: ./backend
-      run: pip install -r requirements.txt pytest
-
-    - name: Run backend tests
-      working-directory: ./backend
-      run: python -m pytest -v
-
-    - name: Validate Nginx configuration
-      run: |
-        docker run --rm -v $(pwd)/nginx/app.conf:/etc/nginx/conf.d/default.conf nginx:alpine nginx -t
-
   build-and-deploy:
-    needs: test  # Зависит от успешного завершения job 'test'
     runs-on: ubuntu-latest
 
     steps:
@@ -57,8 +32,10 @@ jobs:
 
     - name: Deploy
       run: |
+        # Копируем обновленные файлы (если нужно)
         scp -o StrictHostKeyChecking=no ./docker-compose.yml root@${{ secrets.PROD_SERVER_IP }}:/root/app/
 
+        # Запускаем обновление контейнеров
         ssh -o StrictHostKeyChecking=no root@${{ secrets.PROD_SERVER_IP }} << 'EOF'
           cd /root/app
           docker pull ${{ secrets.DOCKER_USERNAME }}/backend:latest

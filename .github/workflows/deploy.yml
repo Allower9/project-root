@@ -11,6 +11,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
+      with:
+        fetch-depth: 0  # Получаем всю историю коммитов
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -19,18 +21,29 @@ jobs:
 
     - name: Install backend dependencies
       working-directory: ./backend
-      run: pip install -r requirements.txt pytest
+      run: |
+        pip install -r requirements.txt pytest
+        pip list  # Для отладки - покажет установленные пакеты
+
+    - name: Verify test files
+      run: |
+        ls -la backend/  # Для отладки - покажет содержимое папки
+        if [ ! -f "backend/test_app.py" ]; then
+          echo "Test file not found!"
+          exit 1
+        fi
 
     - name: Run backend tests
       working-directory: ./backend
-      run: python -m pytest -v
+      run: |
+        python -m pytest -v --capture=no
 
     - name: Validate Nginx configuration
       run: |
         docker run --rm -v $(pwd)/nginx/app.conf:/etc/nginx/conf.d/default.conf nginx:alpine nginx -t
 
   build-and-deploy:
-    needs: test  # Зависит от успешного завершения job 'test'
+    needs: test
     runs-on: ubuntu-latest
 
     steps:
@@ -63,5 +76,5 @@ jobs:
           cd /root/app
           docker pull ${{ secrets.DOCKER_USERNAME }}/backend:latest
           docker pull ${{ secrets.DOCKER_USERNAME }}/nginx:latest
-          docker-compose down && docker-compose up -d --build
+          docker-compose down && docker-compose up -d
         EOF

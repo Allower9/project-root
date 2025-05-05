@@ -30,18 +30,22 @@ jobs:
 
     - name: Validate Nginx configuration
       run: |
-        # Проверяем базовый синтаксис
-        docker run --rm \
+        # Создаем сеть и тестовый бэкенд
+        docker network create test-net || true
+        docker run -d --name test-backend --network test-net --network-alias backend \
+          python:3.12 sh -c "pip install fastapi uvicorn && echo 'from fastapi import FastAPI; app = FastAPI(); @app.get(\"/\") def root(): return {\"status\":\"OK\"}' > app.py && uvicorn app:app --host 0.0.0.0 --port 8000"
+        
+        sleep 5  # Ждем запуска бэкенда
+        
+        # Проверяем Nginx
+        docker run --rm --network test-net \
           -v $(pwd)/nginx/app.conf:/etc/nginx/conf.d/default.conf \
           nginx:alpine nginx -t
         
-        # Проверяем доступность бэкенда (если нужно)
-        docker run --rm \
-          -v $(pwd)/nginx/app.conf:/etc/nginx/conf.d/default.conf \
-          nginx:alpine sh -c "
-            nginx & \
-            sleep 3 && \
-            curl -s http://localhost/api/ || echo 'Backend check skipped'"
+        # Очистка
+        docker stop test-backend
+        docker rm test-backend
+        docker network rm test-net
 
   build-and-deploy:
     needs: test

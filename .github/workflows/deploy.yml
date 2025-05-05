@@ -12,7 +12,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
       with:
-        fetch-depth: 0  # Получаем всю историю коммитов
+        fetch-depth: 0
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -22,14 +22,16 @@ jobs:
     - name: Install backend dependencies
       working-directory: ./backend
       run: |
+        pip install --upgrade pip
         pip install -r requirements.txt pytest
-        pip list  # Для отладки - покажет установленные пакеты
+        pip list  # Для отладки
 
     - name: Verify test files
       run: |
-        ls -la backend/  # Для отладки - покажет содержимое папки
+        echo "Checking test files..."
+        ls -la backend/
         if [ ! -f "backend/test_app.py" ]; then
-          echo "Test file not found!"
+          echo "Error: Test file test_app.py not found!"
           exit 1
         fi
 
@@ -74,7 +76,9 @@ jobs:
 
         ssh -o StrictHostKeyChecking=no root@${{ secrets.PROD_SERVER_IP }} << 'EOF'
           cd /root/app
+          docker-compose down
           docker pull ${{ secrets.DOCKER_USERNAME }}/backend:latest
           docker pull ${{ secrets.DOCKER_USERNAME }}/nginx:latest
-          docker-compose down && docker-compose up -d
+          docker-compose up -d
+          docker ps  # Для проверки запущенных контейнеров
         EOF

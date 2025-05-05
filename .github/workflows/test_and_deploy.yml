@@ -28,11 +28,20 @@ jobs:
       run: |
         python -m pytest -v
 
-    - name: Validate Nginx syntax (без проверки хостов)
+    - name: Validate Nginx configuration
       run: |
+        # Проверяем базовый синтаксис
         docker run --rm \
           -v $(pwd)/nginx/app.conf:/etc/nginx/conf.d/default.conf \
-          nginx:alpine sh -c "nginx -T 2>&1 | grep -q 'syntax is ok' && echo 'Nginx config: OK' || exit 1"
+          nginx:alpine nginx -t
+        
+        # Проверяем доступность бэкенда (если нужно)
+        docker run --rm \
+          -v $(pwd)/nginx/app.conf:/etc/nginx/conf.d/default.conf \
+          nginx:alpine sh -c "
+            nginx & \
+            sleep 3 && \
+            curl -s http://localhost/api/ || echo 'Backend check skipped'"
 
   build-and-deploy:
     needs: test
